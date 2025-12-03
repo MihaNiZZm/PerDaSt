@@ -1,18 +1,15 @@
 package com.github.mihanizzm
 
-import com.github.mihanizzm.model.array.PathCopyingPersistentArray
+import com.github.mihanizzm.model.map.PathCopyingPersistentMap
 
 fun main() {
-    val pArr = PathCopyingPersistentArray.fromList(listOf(1, 2, 3, 4))
-    println(pArr.size)
-    println(pArr[2])
-    val pArr2 = pArr.set(2, 7)
-    var s1 = ""
-    var s2 = ""
-    for (i in 0 until pArr.size) {
-        s1 += " ${pArr[i]}"
-        s2 += " ${pArr2[i]}"
-    }
-    println(s1)
-    println(s2)
+    val age = PathCopyingPersistentMap<String, Int>()
+
+    val age2 = age.put("Misha", 22)
+    val age3 = age2.put("Lesya", 22)
+    val age4 = age3.put("Nikita", 25)
+    val age5 = age4.put("Vanya", 24)
+
+    println(age5.keys())
+    println(age5["Misha"])
 }

@@ -3,13 +3,13 @@ package com.github.mihanizzm
 import com.github.mihanizzm.model.map.PathCopyingPersistentMap
 
 fun main() {
-    val age = PathCopyingPersistentMap<String, Int>()
+    val squares = PathCopyingPersistentMap<Int, Int>()
 
-    val age2 = age.put("Misha", 22)
-    val age3 = age2.put("Lesya", 22)
-    val age4 = age3.put("Nikita", 25)
-    val age5 = age4.put("Vanya", 24)
+    var i = 0
+    val resultMap = generateSequence { i += 1; i }
+        .take(1000)
+        .fold(squares) { acc, i -> acc.put(i, i * i) as PathCopyingPersistentMap<Int, Int> }
 
-    println(age5.keys())
-    println(age5["Misha"])
+    println("${resultMap[0]}, ${resultMap[9]}, ${resultMap[42]}, ${resultMap[99]}, ${resultMap[731]}")
+    println("Height: ${resultMap.treeHeight()}")
 }

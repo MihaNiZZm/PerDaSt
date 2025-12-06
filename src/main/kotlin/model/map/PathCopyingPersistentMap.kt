@@ -27,7 +27,7 @@ class PathCopyingPersistentMap<K: Comparable<K>, V> private constructor(
         return null
     }
 
-    override fun put(key: K, value: V): PersistentMap<K, V> {
+    override fun put(key: K, value: V): PathCopyingPersistentMap<K, V> {
         var added = false
         fun putRec(node: Node<K, V>?): Node<K, V> {
             if (node == null) {
@@ -44,7 +44,7 @@ class PathCopyingPersistentMap<K: Comparable<K>, V> private constructor(
         return PathCopyingPersistentMap(newRoot, if (added) size + 1 else size)
     }
 
-    override fun remove(key: K): PersistentMap<K, V> {
+    override fun remove(key: K): PathCopyingPersistentMap<K, V> {
         var removed = false
         fun findMin(node: Node<K, V>): Node<K, V> =
             node.left?.let { findMin(it) } ?: node

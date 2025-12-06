@@ -99,4 +99,28 @@ class PathCopyingPersistentArray<T> private constructor(
     }
 
     override fun iterator(): Iterator<T> = toList().iterator()
+
+    private fun toList(): List<T> {
+        val result = ArrayList<T>(size)
+        fun traverse(node: Node<T>, level: Int, count: Int) {
+            when (node) {
+                is Leaf -> {
+                    for (i in 0 until BRANCH_FACTOR) {
+                        if (result.size >= size) break
+                        val value = node.items[i]
+                        if (value != null) result.add(value)
+                    }
+                }
+                is Branch -> {
+                    for (i in 0 until BRANCH_FACTOR) {
+                        val child = node.children[i]
+                        if (child != null) traverse(child, level + 1, result.size)
+                        if (result.size >= size) break
+                    }
+                }
+            }
+        }
+        traverse(root, 0, 0)
+        return result
+    }
 }

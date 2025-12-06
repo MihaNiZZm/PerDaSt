@@ -1,6 +1,8 @@
 package com.github.mihanizzm
 
 import com.github.mihanizzm.model.PersistentHistory
+import com.github.mihanizzm.model.PersistentValue
+import com.github.mihanizzm.model.array.PathCopyingPersistentArray
 import com.github.mihanizzm.model.map.PathCopyingPersistentMap
 
 fun main() {
@@ -34,4 +36,38 @@ fun main() {
     squaresHistory.update(squaresHistory.cur().put(1, 22))
     println(squaresHistory.canRedo())
     println(squaresHistory.redo()[1])
+
+    println("-------------------------------------------------------------")
+
+    // Создаём профиль
+    val profile = PathCopyingPersistentMap<String, PersistentValue>()
+        .put("user", PersistentValue.PString("Alice"))
+        .put("age", PersistentValue.PInt(30))
+        .put("tags", PersistentValue.PArray(PathCopyingPersistentArray.fromList(listOf<PersistentValue>(
+            PersistentValue.PString("admin"), PersistentValue.PString("editor")
+        ))))
+
+    // Подключаем историю изменений для профиля
+    val history = PersistentHistory(profile)
+
+    // Меняем теги
+    val oldTags = (history.cur()["tags"] as PersistentValue.PArray).value
+    val newTags = oldTags.set(1, PersistentValue.PString("moderator"))
+    val newProfile = history.cur().put("tags", PersistentValue.PArray(newTags))
+    history.update(newProfile)
+    println((history.cur()["tags"] as PersistentValue.PArray).value.toList())
+    // [PString(value=admin), PString(value=moderator)]
+
+    // Меняем возраст
+    history.update(history.cur().put("age", PersistentValue.PInt(31)))
+    println(history.cur()["age"]) // PInt(value=31)
+
+    // Откатываем последнее изменение (возраст)
+    history.undo()
+    println(history.cur()["age"]) // PInt(value=30)
+
+    // Откатываем ещё (теги)
+    history.undo()
+    println((history.cur()["tags"] as PersistentValue.PArray).value.toList())
+    // [PString(value=admin), PString(value=editor)]
 }

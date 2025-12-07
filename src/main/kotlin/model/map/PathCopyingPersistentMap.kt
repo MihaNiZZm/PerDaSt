@@ -8,13 +8,37 @@ data class Node<K: Comparable<K>, V>(
     val height: Int = 1,
 )
 
+/**
+ * Персистентная мапа на основе AVL‑дерева с path copying.
+ *
+ * Принцип работы:
+ * - Каждая операция модификации (вставка/удаление/обновление) не изменяет
+ *   существующие узлы, а создаёт новую версию дерева, копируя только путь от корня
+ *   к затронутым узлам и поддерживая баланс AVL‑дерева.
+ *
+ * Сложность:
+ * - [get], [put], [remove] — O(log n) по времени.
+ * - Память на модификацию — O(log n) узлов.
+ *
+ * Дополнительно:
+ * - Метод [keys] возвращает множество ключей, формируемое обходом in‑order,
+ *   поэтому ключи будут в возрастающем порядке.
+ */
 class PathCopyingPersistentMap<K: Comparable<K>, V> private constructor(
     private val root: Node<K, V>?,
     override val size: Int
 ): PersistentMap<K, V> {
 
+    /**
+     * Создаёт пустую мапу.
+     */
     constructor(): this(null, 0)
 
+    /**
+     * Возвращает значение по ключу [key] или `null`, если ключ отсутствует.
+     *
+     * Сложность: O(log n).
+     */
     override fun get(key: K): V? {
         var node = root
         while (node != null) {
@@ -27,6 +51,14 @@ class PathCopyingPersistentMap<K: Comparable<K>, V> private constructor(
         return null
     }
 
+    /**
+     * Возвращает новую версию мапы с добавленной или обновлённой парой [key] → [value].
+     *
+     * - Если ключ новый, размер увеличится на 1; если ключ уже существовал — размер сохранится.
+     * - Исходная версия остаётся неизменной.
+     *
+     * Сложность: O(log n).
+     */
     override fun put(key: K, value: V): PathCopyingPersistentMap<K, V> {
         var added = false
         fun putRec(node: Node<K, V>?): Node<K, V> {
@@ -44,6 +76,14 @@ class PathCopyingPersistentMap<K: Comparable<K>, V> private constructor(
         return PathCopyingPersistentMap(newRoot, if (added) size + 1 else size)
     }
 
+    /**
+     * Возвращает новую версию мапы без пары с ключом [key].
+     *
+     * - Если ключ найден, размер уменьшится на 1; иначе возвращается текущая версия.
+     * - Исходная версия остаётся неизменной.
+     *
+     * Сложность: O(log n).
+     */
     override fun remove(key: K): PathCopyingPersistentMap<K, V> {
         var removed = false
         fun findMin(node: Node<K, V>): Node<K, V> =
@@ -73,6 +113,12 @@ class PathCopyingPersistentMap<K: Comparable<K>, V> private constructor(
         return if (removed) PathCopyingPersistentMap(newRoot, size - 1) else this
     }
 
+    /**
+     * Возвращает множество ключей, сформированное симметричным обходом (in‑order).
+     *
+     * - В текущей реализации ключи упорядочены по возрастанию.
+     * - Сложность: O(n).
+     */
     override fun keys(): Set<K> {
         fun inOrder(node: Node<K, V>?, result: MutableSet<K>) {
             if (node == null) return
@@ -85,8 +131,19 @@ class PathCopyingPersistentMap<K: Comparable<K>, V> private constructor(
         return result
     }
 
+    /**
+     * Текущая высота AVL‑дерева (максимальная длина пути от корня до листа).
+     */
     fun treeHeight() = height(root)
 
+    /**
+     * Печатает дерево в человекочитаемом виде в стандартный вывод.
+     *
+     * Параметры предназначены для рекурсивного вызова и форматирования:
+     * - [node] — корень печатаемого поддерева (по умолчанию — корень всей мапы),
+     * - [prefix] — текущий префикс для визуальной «ветвистости»,
+     * - [isLeft] — признак левого ответвления.
+     */
     fun printTree(node: Node<K, V>? = root as Node<K, V>, prefix: String = "", isLeft: Boolean = true) {
         if (node == null) return
         printTree(node.right, prefix + if (isLeft) "│   " else "    ", false)

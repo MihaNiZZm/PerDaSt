@@ -9,6 +9,25 @@ sealed class Node<T>
 class Leaf<T>(val items: Array<T?>) : Node<T>()
 class Branch<T>(val children: Array<Node<T>?>) : Node<T>()
 
+/**
+ * Реализация персистентного массива на основе path copying поверх 32‑арного
+ * сбалансированного дерева.
+ *
+ * Архитектура:
+ * - Внутреннее представление — полное 32‑арное дерево фиксированной глубины [depth].
+ * - Обновление элемента выполняется копированием пути от корня до листа
+ *   (path copying), что обеспечивает иммутабельность предыдущих версий.
+ *
+ * Сложность:
+ * - Чтение [get] — O(log_{32}(size)).
+ * - Запись [set] — O(log_{32}(size)) по времени и памяти (создаются новые узлы вдоль пути).
+ *
+ * Гарантии:
+ * - Все версии массива независимы; [size] фиксирован для конкретной версии.
+ * - Значения ячеек могут быть `null` (пустые ячейки).
+ *
+ * Получать экземпляры следует через фабрики [fromList] и [ofSize].
+ */
 class PathCopyingPersistentArray<T> private constructor(
     private val root: Node<T>,
     override val size: Int,
@@ -16,6 +35,16 @@ class PathCopyingPersistentArray<T> private constructor(
 ) : PersistentArray<T> {
 
     companion object {
+        /**
+         * Создаёт персистентный массив из списка значений [list].
+         *
+         * Особенности:
+         * - Размер результирующего массива равен `list.size`.
+         * - Внутренняя ёмкость подгоняется до ближайшего размера, кратного 32^k (для выбранной [depth]),
+         *   недостающие элементы внутренне дополняются `null`.
+         * - Возвращаемый тип — [PersistentArray] с элементами типа `T?`, чтобы корректно
+         *   представить возможные пустые ячейки.
+         */
         fun <T> fromList(list: List<T>): PersistentArray<T?> {
             val size = list.size
             val depth = computeNeededDepth(size)
@@ -24,6 +53,12 @@ class PathCopyingPersistentArray<T> private constructor(
             return PathCopyingPersistentArray(root, size, depth)
         }
 
+        /**
+         * Создаёт персистентный массив заданного размера [size], заполненный `null`.
+         *
+         * - Возвращаемый тип — [PersistentArray] с элементами типа `T?`.
+         * - Все позиции изначально «пустые».
+         */
         fun <T> ofSize(size: Int): PersistentArray<T?> {
             val depth = computeNeededDepth(size)
             val paddedList = padList(listOf<T>(), 1 shl ((depth + 1) * BITS))
@@ -66,6 +101,13 @@ class PathCopyingPersistentArray<T> private constructor(
         }
     }
 
+    /**
+     * Возвращает значение на позиции [index] или `null`, если ячейка пуста.
+     *
+     * Предусловие: `index in 0 until size`, иначе бросается [IllegalArgumentException].
+     *
+     * Сложность: O(log_{32}(size)).
+     */
     override fun get(index: Int): T? {
         require(index in 0 until size)
         var node: Node<T> = root
@@ -78,6 +120,17 @@ class PathCopyingPersistentArray<T> private constructor(
         return (node as Leaf).items[leafIdx]
     }
 
+    /**
+     * Возвращает новую версию массива с записанным [value] в позицию [index].
+     *
+     * Предусловие: `index in 0 until size`, иначе бросается [IllegalArgumentException].
+     *
+     * Гарантии:
+     * - Исходный массив не изменяется.
+     * - Размер новой версии совпадает с исходным.
+     *
+     * Сложность: O(log_{32}(size)) по времени и памяти.
+     */
     override fun set(index: Int, value: T?): PersistentArray<T> {
         require(index in 0 until size)
         fun setRec(node: Node<T>, level: Int): Node<T> {
@@ -98,6 +151,16 @@ class PathCopyingPersistentArray<T> private constructor(
         return PathCopyingPersistentArray(newRoot, size, depth)
     }
 
+    /**
+     * Итератор по значениям массива.
+     *
+     * Особенности:
+     * - Идёт по индексам от 0 до `size - 1`.
+     * - Пустые ячейки (`null`) пропускаются.
+     * - Тип элементов итератора совпадает с `T` (если `T` сам допускает `null`,
+     *   то итератор будет иметь тип `Iterator<T?>`, однако реализация пропускает
+     *   `null` и фактически возвращает только непустые элементы).
+     */
     override fun iterator(): Iterator<T> = toList().iterator()
 
     private fun toList(): List<T> {

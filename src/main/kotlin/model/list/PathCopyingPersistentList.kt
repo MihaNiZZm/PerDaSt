@@ -1,5 +1,8 @@
 package com.github.mihanizzm.model.list
 
+import com.github.mihanizzm.model.array.PathCopyingPersistentArray
+import com.github.mihanizzm.model.array.PersistentArray
+
 /**
  * Внутренний узел двусвязного персистентного списка.
  *
@@ -36,6 +39,41 @@ class PathCopyingPersistentList<T> private constructor(
      */
     constructor() : this(null, null, 0)
 
+    companion object {
+        /**
+         * Создает персистентный список из персистентного массива.
+         *
+         * @param array исходный персистентный массив
+         * @return персистентный список с теми же элементами
+         */
+        fun <T> fromPersistentArray(array: PersistentArray<T?>): PathCopyingPersistentList<T> {
+            val elements = mutableListOf<T?>()
+            for (i in 0 until array.size) {
+                elements.add(array.get(i))
+            }
+            
+            var result = PathCopyingPersistentList<T>()
+            for (element in elements) {
+                result = result.addLast(element)
+            }
+            return result
+        }
+        
+        /**
+         * Создает персистентный список из обычного списка.
+         *
+         * @param elements список элементов
+         * @return персистентный список с указанными элементами
+         */
+        fun <T> fromList(elements: List<T?>): PathCopyingPersistentList<T> {
+            var result = PathCopyingPersistentList<T>()
+            for (element in elements) {
+                result = result.addLast(element)
+            }
+            return result
+        }
+    }
+
     /**
      * Возвращает элемент по указанному индексу или `null`, если элемент отсутствует.
      *
@@ -48,7 +86,7 @@ class PathCopyingPersistentList<T> private constructor(
     override fun get(index: Int): T? {
         require(index in 0 until size) { "Index $index out of bounds for size $size" }
         
-        if (index < size / 2) {
+        if (index <= size / 2) {
             var current = firstNode
             var currentIndex = 0
             while (current != null) {
@@ -111,7 +149,7 @@ class PathCopyingPersistentList<T> private constructor(
      * @param element добавляемый элемент (может быть `null`)
      * @return новая версия списка с добавленным элементом
      */
-    override fun add(element: T?): PathCopyingPersistentList<T> {
+    override fun addLast(element: T?): PathCopyingPersistentList<T> {
         return if (lastNode == null) {
             val newNode = ListNode(element, null, null)
             PathCopyingPersistentList(newNode, newNode, 1)
@@ -145,7 +183,23 @@ class PathCopyingPersistentList<T> private constructor(
             PathCopyingPersistentList(newNode, newNode, 1)
         } else {
             val newFirstNode = ListNode(element, null, firstNode)
-            PathCopyingPersistentList(newFirstNode, lastNode, size + 1)
+            
+            // Обновляем prev у старого первого узла
+            val updatedOldFirst = ListNode(firstNode.value, newFirstNode, firstNode.next)
+            
+            // Копируем остальную цепочку
+            fun copyChain(node: ListNode<T>?): ListNode<T>? {
+                if (node == null) return null
+                
+                return if (node == firstNode) {
+                    updatedOldFirst
+                } else {
+                    ListNode(node.value, node.prev, copyChain(node.next))
+                }
+            }
+            
+            val newLastNode = copyChain(lastNode)
+            PathCopyingPersistentList(newFirstNode, newLastNode, size + 1)
         }
     }
 
@@ -164,7 +218,21 @@ class PathCopyingPersistentList<T> private constructor(
             PathCopyingPersistentList(null, null, 0)
         } else {
             val newFirstNode = firstNode.next!!
-            PathCopyingPersistentList(newFirstNode, lastNode, size - 1)
+            // Обновляем prev у нового первого узла
+            val updatedNewFirst = ListNode(newFirstNode.value, null, newFirstNode.next)
+            
+            fun copyChain(node: ListNode<T>?): ListNode<T>? {
+                if (node == null) return null
+                
+                return if (node == newFirstNode) {
+                    updatedNewFirst
+                } else {
+                    ListNode(node.value, node.prev, copyChain(node.next))
+                }
+            }
+            
+            val newLastNode = copyChain(lastNode)
+            PathCopyingPersistentList(updatedNewFirst, newLastNode, size - 1)
         }
     }
 
@@ -177,32 +245,36 @@ class PathCopyingPersistentList<T> private constructor(
      * @throws NoSuchElementException если список пуст
      */
     override fun removeLast(): PathCopyingPersistentList<T> {
-        if (lastNode == null) {
-            throw NoSuchElementException("Cannot remove from empty list")
-        }
+        if (lastNode == null) throw NoSuchElementException("Cannot remove from empty list")
+        if (size == 1) return PathCopyingPersistentList(null, null, 0)
         
-        return if (size == 1) {
-            PathCopyingPersistentList(null, null, 0)
-        } else {
-            val newLastNode = lastNode.prev!!
-            
-            fun copyChain(node: ListNode<T>?): ListNode<T>? {
-                if (node == null) return null
-                
-                if (node == newLastNode) {
-                    return ListNode(node.value, node.prev, null)
-                }
-                
-                if (node.prev == newLastNode) {
-                    return copyChain(node.next)
-                }
-                
-                return ListNode(node.value, node.prev, copyChain(node.next))
+        val newLastNode = lastNode.prev!!
+        
+        val updatedNewLast = ListNode(newLastNode.value, newLastNode.prev, null)
+        
+        fun copyChain(node: ListNode<T>?): ListNode<T>? {
+            if (node == null) {
+                return null
             }
             
-            val newFirstNode = copyChain(firstNode)
-            PathCopyingPersistentList(newFirstNode, newLastNode, size - 1)
+            if (node == newLastNode) {
+                return updatedNewLast
+            }
+            
+            if (node == lastNode) {
+                return copyChain(node.next)
+            }
+            
+            val newNext = copyChain(node.next)
+            val result = ListNode(node.value, node.prev, newNext)
+            return result
         }
+        
+        val newFirstNode = copyChain(firstNode)
+        
+        val result = PathCopyingPersistentList(newFirstNode, updatedNewLast, size - 1)
+        
+        return result
     }
 
     /**
@@ -218,15 +290,19 @@ class PathCopyingPersistentList<T> private constructor(
         
         return when {
             index == 0 -> addFirst(element)
-            index == size -> add(element)
+            index == size -> addLast(element)
             else -> {
+                // Находим узел перед позицией вставки и копируем цепочку
                 fun findAndInsert(node: ListNode<T>?, currentIndex: Int): ListNode<T>? {
                     if (node == null) return null
                     
                     return if (currentIndex == index - 1) {
+                        // Создаем новый узел
                         val newNode = ListNode(element, node, node.next)
+                        // Обновляем текущий узел
                         ListNode(node.value, node.prev, newNode)
                     } else {
+                        // Копируем дальше
                         ListNode(
                             node.value,
                             node.prev,
@@ -236,7 +312,14 @@ class PathCopyingPersistentList<T> private constructor(
                 }
                 
                 val newFirstNode = findAndInsert(firstNode, 0)
-                PathCopyingPersistentList(newFirstNode, lastNode, size + 1)
+                
+                // Находим новый последний узел
+                var newLastNode = newFirstNode
+                while (newLastNode?.next != null) {
+                    newLastNode = newLastNode.next
+                }
+                
+                PathCopyingPersistentList(newFirstNode, newLastNode, size + 1)
             }
         }
     }
@@ -255,19 +338,27 @@ class PathCopyingPersistentList<T> private constructor(
             index == 0 -> removeFirst()
             index == size - 1 -> removeLast()
             else -> {
+                // Находим узел перед удаляемым и копируем цепочку
                 fun findAndRemove(node: ListNode<T>?, currentIndex: Int): ListNode<T>? {
                     if (node == null) return null
                     
                     return if (currentIndex == index - 1) {
+                        // node - узел перед удаляемым
                         val nodeToRemove = node.next!!
+                        // Связываем текущий узел со следующим после удаляемого
+                        val newNext = nodeToRemove.next
                         ListNode(
                             node.value,
                             node.prev,
-                            nodeToRemove.next?.let { nextNode ->
-                                ListNode(nextNode.value, node, nextNode.next)
+                            if (newNext != null) {
+                                // Обновляем prev у следующего узла
+                                ListNode(newNext.value, node, newNext.next)
+                            } else {
+                                null
                             }
                         )
                     } else {
+                        // Копируем дальше
                         ListNode(
                             node.value,
                             node.prev,
@@ -277,7 +368,14 @@ class PathCopyingPersistentList<T> private constructor(
                 }
                 
                 val newFirstNode = findAndRemove(firstNode, 0)
-                PathCopyingPersistentList(newFirstNode, lastNode, size - 1)
+                
+                // Находим новый последний узел
+                var newLastNode = newFirstNode
+                while (newLastNode?.next != null) {
+                    newLastNode = newLastNode.next
+                }
+                
+                PathCopyingPersistentList(newFirstNode, newLastNode, size - 1)
             }
         }
     }
@@ -299,8 +397,10 @@ class PathCopyingPersistentList<T> private constructor(
             if (node == null) return null
             
             return if (currentIndex == index) {
+                // Заменяем значение в узле
                 ListNode(element, node.prev, node.next)
             } else {
+                // Копируем дальше
                 ListNode(
                     node.value,
                     node.prev,
@@ -310,7 +410,39 @@ class PathCopyingPersistentList<T> private constructor(
         }
         
         val newFirstNode = copyAndUpdate(firstNode, 0)
-        return PathCopyingPersistentList(newFirstNode, lastNode, size)
+        
+        // Находим новый последний узел (он может измениться, если изменились ссылки)
+        var newLastNode = newFirstNode
+        while (newLastNode?.next != null) {
+            newLastNode = newLastNode.next
+        }
+        
+        return PathCopyingPersistentList(newFirstNode, newLastNode, size)
+    }
+
+    /**
+     * Преобразует список в персистентный массив.
+     *
+     * Создает новую версию персистентного массива, содержащую те же элементы
+     * в том же порядке. Преобразование выполняется за O(n) времени и памяти.
+     *
+     * @return персистентный массив с элементами списка
+     */
+    fun toPersistentArray(): PersistentArray<T?> {
+        if (size == 0) {
+            return PathCopyingPersistentArray.ofSize(0)
+        }
+        
+        val elements = mutableListOf<T?>()
+        var current = firstNode
+        var count = 0
+        while (current != null && count < size) {
+            elements.add(current.value)
+            current = current.next
+            count++
+        }
+        
+        return PathCopyingPersistentArray.fromList(elements)
     }
 
     /**

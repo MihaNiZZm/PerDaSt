@@ -1,6 +1,7 @@
 package com.github.mihanizzm.model
 
 import com.github.mihanizzm.model.array.PersistentArray
+import com.github.mihanizzm.model.list.PersistentList
 import com.github.mihanizzm.model.map.PersistentMap
 
 /**
@@ -51,4 +52,11 @@ sealed class PersistentValue {
      * - Семантика и сложность операций определяются реализацией [PersistentMap].
      */
     data class PMap(val value: PersistentMap<String, PersistentValue>): PersistentValue()
+     /**
+     * Персистентный список значений [PersistentValue].
+     *
+     * - Элементы списка имеют тип `PersistentValue?`, что позволяет явно хранить пустые значения.
+     * - Семантика и сложность операций определяются реализацией [PersistentList].
+     */
+    data class PList(val value: PersistentList<PersistentValue?>): PersistentValue()
 }

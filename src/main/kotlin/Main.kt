@@ -7,170 +7,189 @@ import com.github.mihanizzm.model.list.PathCopyingPersistentList
 import com.github.mihanizzm.model.map.PathCopyingPersistentMap
 
 fun main() {
+    val squares = PathCopyingPersistentMap<Int, Int>()
+    val squaresHistory = PersistentHistory(squares)
 
-    println("=== Comprehensive test of all methods ===")
+    var i = 0
+    val resultMap = generateSequence { i += 1; i }
+        .take(1000)
+        .fold(squares) { _, i ->
+            squaresHistory.update(squaresHistory.cur().put(i, i * i))
+        }
 
-    // 1. Создаем пустой список и историю
-    val list = PathCopyingPersistentList<Int>()
-    val history = PersistentHistory(list)
+    println("${resultMap[0]}, ${resultMap[9]}, ${resultMap[42]}, ${resultMap[99]}, ${resultMap[731]}")
+    println("Height: ${resultMap.treeHeight()}")
 
-    println("1. Empty list: ${history.cur().toList()}, size: ${history.cur().size}")
+    println(squaresHistory.cur()[12])
+    println(squaresHistory.cur()[1000])
+    println(squaresHistory.undo()[1000])
+    println(squaresHistory.redo()[1000])
 
-    // 2. Добавляем элементы в конец
-    history.update(history.cur().add(10))
-    history.update(history.cur().add(20))
-    history.update(history.cur().add(30))
-    println("2. After add(10), add(20), add(30): ${history.cur().toList()}, size: ${history.cur().size}")
+    squaresHistory.update(squaresHistory.cur().put(1, 42))
+    println(squaresHistory.cur()[1])
 
-    // 3. Добавляем в начало
-    history.update(history.cur().addFirst(5))
-    println("3. After addFirst(5): ${history.cur().toList()}, size: ${history.cur().size}")
+    squaresHistory.update(squaresHistory.cur().put(1, 17))
+    println(squaresHistory.cur()[1])
 
-    // 4. Вставляем в середину
-    history.update(history.cur().insert(2, 15))
-    println("4. After insert(2, 15): ${history.cur().toList()}, size: ${history.cur().size}")
+    println(squaresHistory.undo()[1])
+    println(squaresHistory.undo()[1])
 
-    // 5. Изменяем элемент
-    history.update(history.cur().set(3, 25))
-    println("5. After set(3, 25): ${history.cur().toList()}, size: ${history.cur().size}")
+    squaresHistory.update(squaresHistory.cur().put(1, 22))
+    println(squaresHistory.canRedo())
+    println(squaresHistory.redo()[1])
 
-    // 6. Удаляем первый
-    history.update(history.cur().removeFirst())
-    println("6. After removeFirst(): ${history.cur().toList()}, size: ${history.cur().size}")
+    println("-------------------------------------------------------------")
 
-    // 7. Удаляем последний
-    history.update(history.cur().removeLast())
-    println("7. After removeLast(): ${history.cur().toList()}, size: ${history.cur().size}")
+    // Создаём профиль
+    val profile = PathCopyingPersistentMap<String, PersistentValue>()
+        .put("user", PersistentValue.PString("Alice"))
+        .put("age", PersistentValue.PInt(30))
+        .put("tags", PersistentValue.PArray(PathCopyingPersistentArray.fromList(listOf<PersistentValue>(
+            PersistentValue.PString("admin"), PersistentValue.PString("editor")
+        ))))
 
-    // 8. Удаляем по индексу (середина)
-    history.update(history.cur().removeAt(1))
-    println("8. After removeAt(1): ${history.cur().toList()}, size: ${history.cur().size}")
+    // Подключаем историю изменений для профиля
+    val history = PersistentHistory(profile)
 
-    // Теперь проверяем undo/redo для всех операций
-    println("\n=== Testing Undo/Redo ===")
+    // Меняем теги
+    val oldTags = (history.cur()["tags"] as PersistentValue.PArray).value
+    val newTags = oldTags.set(1, PersistentValue.PString("moderator"))
+    val newProfile = history.cur().put("tags", PersistentValue.PArray(newTags))
+    history.update(newProfile)
+    println((history.cur()["tags"] as PersistentValue.PArray).value.toList())
+    // [PString(value=admin), PString(value=moderator)]
 
-    // Undo все шаги
-    println("Undo step 8 (removeAt):")
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    // Меняем возраст
+    history.update(history.cur().put("age", PersistentValue.PInt(31)))
+    println(history.cur()["age"]) // PInt(value=31)
 
-    println("Undo step 7 (removeLast):")
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    // Откатываем последнее изменение (возраст)
 
-    println("Undo step 6 (removeFirst):")
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
 
-    println("Undo step 5 (set):")
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
 
-    println("Undo step 4 (insert):")
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
 
-    println("Undo step 3 (addFirst):")
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    println("-------------------------------------------------------------")
 
-    println("Undo step 2 (add x3):")
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    // Простой сценарий: Список дел с историей изменений
+    println("=== Список дел с историей изменений ===")
 
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    // Создаем пустой список дел
+    val emptyTodoList = PathCopyingPersistentList<String>()
+    val todoHistory = PersistentHistory(emptyTodoList)
 
-    history.undo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    println("1. Начинаем с пустого списка дел")
 
-    println("\nNow we should be back to empty list")
-    println("Empty: ${history.cur().toList()}, size: ${history.cur().size}")
+    // Добавляем задачи
+    todoHistory.update(todoHistory.cur().addLast("Купить молоко"))
+    println("2. Добавили: Купить молоко")
 
-    // Redo все шаги
-    println("\n=== Testing Redo ===")
-    println("Redo add(10):")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    todoHistory.update(todoHistory.cur().addLast("Позвонить маме"))
+    println("3. Добавили: Позвонить маме")
 
-    println("Redo add(20):")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    todoHistory.update(todoHistory.cur().addLast("Сделать домашку"))
+    println("4. Добавили: Сделать домашку")
 
-    println("Redo add(30):")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    todoHistory.update(todoHistory.cur().addLast("Почистить зубы"))
+    println("5. Добавили: Почистить зубы")
 
-    println("Redo addFirst(5):")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
+    todoHistory.update(todoHistory.cur().addLast("Лечь спать до 23:00"))
+    println("6. Добавили: Лечь спать до 23:00")
 
-    println("Redo insert(2, 15):")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
-
-    println("Redo set(3, 25):")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
-
-    println("Redo removeFirst():")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
-
-    println("Redo removeLast():")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
-
-    println("Redo removeAt(1):")
-    history.redo()
-    println("  List: ${history.cur().toList()}, size: ${history.cur().size}")
-
-    // Проверка edge cases
-    println("\n=== Testing edge cases ===")
-
-    // removeAt на пустом списке
-    try {
-        PathCopyingPersistentList<Int>().removeAt(0)
-        println("ERROR: Should have thrown exception!")
-    } catch (e: IllegalArgumentException) {
-        println("Correctly caught removeAt on empty list: ${e.message}")
+    // Показываем текущий список
+    println("\nТекущий список дел (${todoHistory.cur().size} задач):")
+    todoHistory.cur().forEachIndexed { index, task ->
+        println("  ${index + 1}. $task")
     }
 
-    // removeAt с некорректным индексом
-    val smallList = PathCopyingPersistentList<Int>().add(1).add(2)
-    try {
-        smallList.removeAt(5)
-        println("ERROR: Should have thrown exception!")
-    } catch (e: IllegalArgumentException) {
-        println("Correctly caught removeAt with invalid index: ${e.message}")
+    // Выполняем задачу (удаляем)
+    println("\n7. Выполняем задачу 'Почистить зубы'...")
+    val currentList = todoHistory.cur()
+    val taskIndex = currentList.indexOf("Почистить зубы")
+    if (taskIndex != -1) {
+        todoHistory.update(currentList.removeAt(taskIndex))
+        println("   Задача выполнена и удалена из списка!")
     }
 
-    // insert с некорректным индексом
-    try {
-        smallList.insert(5, 3)
-        println("ERROR: Should have thrown exception!")
-    } catch (e: IllegalArgumentException) {
-        println("Correctly caught insert with invalid index: ${e.message}")
+    // Показываем текущий список
+    println("\nТекущий список дел (${todoHistory.cur().size} задач):")
+    todoHistory.cur().forEachIndexed { index, task ->
+        println("  ${index + 1}. $task")
     }
 
-    // set с некорректным индексом
-    try {
-        smallList.set(5, 3)
-        println("ERROR: Should have thrown exception!")
-    } catch (e: IllegalArgumentException) {
-        println("Correctly caught set with invalid index: ${e.message}")
+    // Меняем приоритет (перемещаем задачу)
+    println("\n8. Повышаем приоритет 'Лечь спать до 23:00'...")
+    val listWithMoved = todoHistory.cur()
+    val sleepIndex = listWithMoved.indexOf("Лечь спать до 23:00")
+    if (sleepIndex != -1) {
+        // Удаляем и вставляем в начало
+        val task = listWithMoved.get(sleepIndex)
+        val withoutTask = listWithMoved.removeAt(sleepIndex)
+        todoHistory.update(withoutTask.addFirst(task))
+        println("   Задача перемещена в начало списка!")
     }
 
-    // Проверка работы с null значениями
-    println("\n=== Testing with null values ===")
-    val nullList = PathCopyingPersistentList<Int?>()
-        .add(1)
-        .add(null)
-        .add(3)
-        .insert(1, null)
-        .set(2, null)
+    // Показываем текущий список
+    println("\nТекущий список дел (${todoHistory.cur().size} задач):")
+    todoHistory.cur().forEachIndexed { index, task ->
+        println("  ${index + 1}. $task")
+    }
 
-    println("List with nulls: ${nullList.toList()}, size: ${nullList.size}")
-    println("get(1): ${nullList.get(1)} (should be null)")
-    println("get(2): ${nullList.get(2)} (should be null)")
+    // Отменяем последнее изменение
+    println("\n9. Отменяем последнее изменение...")
+    todoHistory.undo()
+    println("   Вернули список до перемещения задачи")
+
+    // Показываем текущий список
+    println("\nТекущий список дел (${todoHistory.cur().size} задач):")
+    todoHistory.cur().forEachIndexed { index, task ->
+        println("  ${index + 1}. $task")
+    }
+
+    // Редактируем задачу
+    println("\n10. Редактируем задачу 'Сделать домашку'...")
+    val listToEdit = todoHistory.cur()
+    val homeworkIndex = listToEdit.indexOf("Сделать домашку")
+    if (homeworkIndex != -1) {
+        todoHistory.update(listToEdit.set(homeworkIndex, "Сделать домашку по математике"))
+        println("   Задача обновлена!")
+    }
+
+    // Показываем финальный список
+    println("\nФинальный список дел (${todoHistory.cur().size} задач):")
+    todoHistory.cur().forEachIndexed { index, task ->
+        println("  ${index + 1}. $task")
+    }
+
+    // Демонстрация истории
+    println("\n=== История изменений ===")
+    println("Можно отменить изменений: ${todoHistory.canUndo()}")
+    println("Можно вернуть отмененное: ${todoHistory.canRedo()}")
+
+    // Сохраняем список в файл (имитация)
+    println("\n11. Сохраняем список в 'персистентный массив'...")
+    val savedArray = todoHistory.cur().toPersistentArray()
+    println("   Список сохранен (${savedArray.size} задач)")
+
+    // Восстанавливаем из 'файла'
+    println("\n12. Восстанавливаем список из 'файла'...")
+    val restoredList = PathCopyingPersistentList.fromPersistentArray(savedArray)
+    println("   Список восстановлен (${restoredList.size} задач):")
+    restoredList.forEachIndexed { index, task ->
+        println("    ${index + 1}. $task")
+    }
+
+    // Создаем копию для планирования на завтра
+    println("\n13. Создаем копию для завтрашнего дня...")
+    val tomorrowList = restoredList
+        .addLast("Сходить в магазин")
+        .addLast("Подготовиться к встрече")
+        .removeAt(0) // Удаляем "Купить молоко" (уже купили)
+
+    println("   Список на завтра (${tomorrowList.size} задач):")
+    tomorrowList.forEachIndexed { index, task ->
+        println("    ${index + 1}. $task")
+    }
+
+    println("\n=== Список дел: демонстрация завершена ===")
+    println("Все операции выполнены без изменения оригинальных списков!")
 }

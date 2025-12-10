@@ -17,7 +17,7 @@ interface PersistentList<T> : PersistentCollection<T> {
      * Добавляет элемент [element] в конец списка.
      * Возвращает новый список с добавленным элементом.
      */
-    fun add(element: T?): PersistentList<T>
+    fun addLast(element: T?): PersistentList<T>
     
     /**
      * Добавляет элемент [element] в начало списка.

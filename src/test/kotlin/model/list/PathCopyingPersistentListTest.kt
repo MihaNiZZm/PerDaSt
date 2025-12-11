@@ -1,7 +1,7 @@
-package com.github.mihanizzm.model.list
+package model.list
 
 import com.github.mihanizzm.model.PersistentHistory
-import com.github.mihanizzm.model.array.PathCopyingPersistentArray
+import com.github.mihanizzm.model.list.PathCopyingPersistentList
 import org.junit.jupiter.api.Assertions.*
 import kotlin.test.Test
 

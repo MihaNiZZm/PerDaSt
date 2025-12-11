@@ -64,9 +64,8 @@ fun main() {
     println(history.cur()["age"]) // PInt(value=31)
 
     // Откатываем последнее изменение (возраст)
-
-
-
+    history.undo()
+    println(history.cur()["age"]) // PInt(value=30)
 
     println("-------------------------------------------------------------")
 
